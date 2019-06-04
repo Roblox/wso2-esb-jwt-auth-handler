@@ -116,7 +116,7 @@ public class Keystore {
         return (RSAPrivateKey) key;
 	}
 	
-	public ArrayList<String> getValidAlaises() {
+	public ArrayList<String> getValidAliases() {
 		return aliases;
 	}
 	
