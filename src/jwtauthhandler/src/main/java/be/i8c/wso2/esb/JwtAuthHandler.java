@@ -188,7 +188,7 @@ public class JwtAuthHandler extends AbstractHandler implements ManagedLifecycle 
     		  break;
     	  case "signed":
     		  jwt = SignedJWT.parse(jwtString);
-    		  if (!jwtValidator.isValidJwt((SignedJWT)jwt)) {
+    		  if (!jwtValidator.isSignatureValid((SignedJWT)jwt)) {
     	          sendResponse(HttpURLConnection.HTTP_FORBIDDEN, headersMap, axis2MessageContext,
     	              messageContext, "JWT signature validation failed");
     	          return false;
