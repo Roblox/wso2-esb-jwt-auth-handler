@@ -42,74 +42,71 @@ public class JwtValidator {
   private Log log = LogFactory.getLog(getClass());
 
   private ArrayList<Keystore> keystores;
-  
+
   private boolean enforceExpiration;
 
   public JwtValidator(OMElement config) {
-	  
-	  enforceExpiration = Boolean.parseBoolean(Utils.GetAttributeValue("EnforceJwtExpiration", config));
-	  
-      Iterator<OMElement> i = Utils.GetElement("Keystores", config).getChildElements();
-      
-      keystores = new ArrayList<Keystore>();
-      
-      while (i.hasNext()) {
-        OMElement keystoreElement = i.next();
-        String location = Utils.GetElement("Location", keystoreElement).getText();
-        String password = Utils.GetVaultValue(Utils.GetAttributeValue("KeystoreVaultKey", keystoreElement));
-        log.debug("Adding aliases");
-        ArrayList<String> aliases = Utils.GetChildElementValues(
-				Utils.GetElement("Aliases", keystoreElement)
-				);
-        aliases.trimToSize();
-        log.debug("Aliases to add count: " + aliases.size());
-        keystores.add( new Keystore(location, password, null, aliases));
-      }
+    
+    Iterator<OMElement> i = Utils.GetElement("Keystores", config).getChildElements();
+
+    keystores = new ArrayList<Keystore>();
+
+    while (i.hasNext()) {
+      OMElement keystoreElement = i.next();
+      String location = Utils.GetElement("Location", keystoreElement).getText();
+      String password = Utils.GetVaultValue(Utils.GetAttributeValue("KeystoreVaultKey", keystoreElement));
+      log.debug("Adding aliases");
+      ArrayList<String> aliases = Utils.GetChildElementValues(Utils.GetElement("Aliases", keystoreElement));
+      aliases.trimToSize();
+      log.debug("Aliases to add count: " + aliases.size());
+      keystores.add(new Keystore(location, password, null, aliases));
+    }
   }
 
   /**
    * Verifies the signature on the JWT token.
    * 
-   * @param signedJwtAsString
-   *          A JWT as String
+   * @param signedJwtAsString A JWT as String
    * @return true of JWT token valid, false otherwise
    * @throws KeyStoreException
    */
-  public boolean isValidJwt(SignedJWT jwt)  {
+  public boolean isSignatureValid(SignedJWT jwt) {
 
     if (keystores == null || keystores.isEmpty()) {
       log.error("JwtValidator object not properly initialized!");
       return false;
-    } 
+    }
 
-	boolean isValid = false;
-	for (Keystore keystore : keystores) {
-		for (String alias : keystore.getValidAlaises()) {
-			try {
-				log.debug("Testing for public key " + alias);
-			RSAPublicKey publicKey = (RSAPublicKey) keystore.GetPublicKey(alias);
-			if (publicKey == null) { log.debug("Public key is null"); }
-	        JWSVerifier verifier = new RSASSAVerifier(publicKey);
-	        isValid = jwt.verify(verifier);
-	        
-	        if (isValid) {
-	        	log.debug("JWT signature is valid");
-	        	break;
-	        }
-		    } catch (JOSEException e) {
-		        log.warn(e);
-		      } catch (KeyStoreException e) {
-		  		log.warn(e);
-		  	}
-		}
-	    if (isValid) {
-	    	break;
-	    }
-	}
-	
-	// TODO Need to re-add expiration validation
-	log.debug("Reached end of JwtValidator");
-	return isValid;
+    boolean isValid = false;
+    for (Keystore keystore : keystores) {
+      for (String alias : keystore.getValidAlaises()) {
+        try {
+          log.debug("Testing for public key " + alias);
+          RSAPublicKey publicKey = (RSAPublicKey) keystore.GetPublicKey(alias);
+          if (publicKey == null) {
+            log.debug("Public key is null");
+          }
+          JWSVerifier verifier = new RSASSAVerifier(publicKey);
+          isValid = jwt.verify(verifier);
+
+          if (isValid) {
+            log.debug("JWT signature is valid");
+            break;
+          }
+        } catch (JOSEException e) {
+          log.warn(e);
+        } catch (KeyStoreException e) {
+          log.warn(e);
+        }
+      }
+      if (isValid) {
+        break;
+      }
+    }
+
+    // TODO Need to re-add expiration validation
+    log.debug("Reached end of JwtValidator");
+    return isValid;
   }
 
 }

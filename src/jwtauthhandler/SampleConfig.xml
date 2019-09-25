@@ -1,0 +1,65 @@
+<!--
+    Sample Configuration for JwtAuthHandler
+
+    In the EI API include the following XML or add the appropriate
+    elements via the UI:
+
+  <handlers>
+     <handler class="be.i8c.wso2.esb.JwtAuthHandler">
+        <property name="configKey" 
+        value="conf:/repository/components/Roblox/JwtAuthHandlerConfig.xml"/> 
+     </handler>
+  </handlers>
+
+    The configKey property value should match the location in the WSO2 EI
+    registry that the contents of this file will be stored.
+
+    Modify this file as appropriate and save into the EI Registry at the
+    above configured location.
+
+    Restart EI
+    
+-->
+
+
+<JwtAuthHandlerConfig JwtType="signed">
+  <Keystores>
+    <!-- for JwtType="encrypted" the private key is required 
+    <Keystore KeystoreVaultKey="wso2carbon" PrivateKeyVaultKey="wso2carbon">
+      C:\Program Files\WSO2\wso2ei-6.5.0\repository\resources\security\wso2carbon.jks
+    </Keystore>-->
+    <!-- For JwtType="signed" where only the public key is required -->
+    <Keystore KeystoreVaultKey="wso2carbon" CertificateAlias="wso2carbon">
+      <Location>C:\Program Files\WSO2\wso2ei-6.5.0\repository\resources\security\wso2carbon.jks</Location>
+      <Aliases>
+        <Alias>wso2carbon</Alias>
+      </Aliases>
+    </Keystore>
+  </Keystores>
+  <JwtHttpHeader>X-JWT-Assertion</JwtHttpHeader>
+  <JwtIssuer>wso2.org/products/am</JwtIssuer>
+  <JwtClaimsMap>
+    <Map>
+      <JwtClaim>http://wso2.org/claims/subscriber</JwtClaim>
+      <ContextProperty>JwtUsername</ContextProperty>
+      <Required>true</Required>
+    </Map>
+      <Map>
+      <JwtClaim>http://wso2.org/claims/role</JwtClaim>
+      <ContextProperty>JwtRoles</ContextProperty>
+      <Required>true</Required>
+    </Map>
+    <Map>
+      <JwtClaim>iat</JwtClaim>
+      <ContextProperty>JwtIssuedAt</ContextProperty>
+      <Required>true</Required>
+      <DateValidationSeconds Past="600" Future="600" />
+    </Map>
+    <Map>
+      <JwtClaim>exp</JwtClaim>
+      <ContextProperty>JwtExpires</ContextProperty>
+      <Required>true</Required>
+      <DateValidationSeconds Past="0" Future="1800" />
+    </Map>
+  </JwtClaimsMap>
+</JwtAuthHandlerConfig>
