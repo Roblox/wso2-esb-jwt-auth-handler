@@ -84,7 +84,7 @@ public class JwtValidator {
 
 	boolean isValid = false;
 	for (Keystore keystore : keystores) {
-		for (String alias : keystore.getValidAlaises()) {
+		for (String alias : keystore.getValidAliases()) {
 			try {
 				log.debug("Testing for public key " + alias);
 			RSAPublicKey publicKey = (RSAPublicKey) keystore.GetPublicKey(alias);
