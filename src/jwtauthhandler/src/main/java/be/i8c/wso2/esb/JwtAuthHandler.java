@@ -18,8 +18,9 @@ package be.i8c.wso2.esb;
 import java.util.Map;
 import java.text.ParseException;
 
-
 import org.apache.axiom.om.OMElement;
+import org.apache.axiom.om.OMXMLBuilderFactory;
+import org.apache.axiom.om.OMXMLParserWrapper;
 import org.apache.commons.httpclient.util.HttpURLConnection;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,6 +36,12 @@ import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.EncryptedJWT;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
 
 import be.i8c.wso2.esb.JwtDecryptor;
 import be.i8c.wso2.esb.JwtClaimsMap;
@@ -95,21 +102,15 @@ import be.i8c.wso2.esb.Utils;
  */
 public class JwtAuthHandler extends AbstractHandler implements ManagedLifecycle {
 
-  private Log log = LogFactory.getLog(getClass());
-
-  private String configKey;
-  
-  private String jwtHeaderName;
-
-  private JwtValidator jwtValidator;
-  
-  private JwtDecryptor jwtDecryptor;
-  
-  private JwtClaimsMap jwtClaimsMap;
-  
-  private OMElement config;
-
   public static final String jwtValidatorRootConfigKey = "JwtAuthHandlerConfig";
+
+  private Log log = LogFactory.getLog(getClass());
+  private String configKey;
+  private String jwtHeaderName;
+  private JwtValidator jwtValidator;
+  private JwtDecryptor jwtDecryptor;
+  private JwtClaimsMap jwtClaimsMap;
+  private OMElement config;
 
   @Override
   public void destroy() {
@@ -122,29 +123,45 @@ public class JwtAuthHandler extends AbstractHandler implements ManagedLifecycle 
     if (getConfigKey() == null) {
       throw new SynapseException("Configuration key required but not specified!");
     }
-    
+
     Registry reg = synapseEnvironment.getSynapseConfiguration().getRegistry();
 
     if (reg == null) {
       throw new SynapseException("Registry is null");
     }
-    
-    config = (OMElement) reg.lookup(getConfigKey());
-    
-    if (config.getLocalName() != jwtValidatorRootConfigKey) {
-		throw new SynapseException(
-	            "Initialization XML root element " + config.getLocalName()
-	            + " doesn't match expected value " + jwtValidatorRootConfigKey + "!");
+
+    File xmlFile = new File(getConfigKey());
+
+    //create the input stream
+    InputStream in = null;
+    try {
+      in = new FileInputStream(xmlFile);
+    } catch (FileNotFoundException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
     }
+
+//create the builder
+OMXMLParserWrapper builder = OMXMLBuilderFactory.createOMBuilder(in);
+
+//get the root element
+OMElement documentElement = builder.getDocumentElement();
+config = documentElement;
     
-    jwtHeaderName = Utils.GetElement("JwtHttpHeader", config).getText();
-    
-    jwtValidator = new JwtValidator(config);
-    
-    jwtClaimsMap = new JwtClaimsMap(Utils.GetElement("JwtClaimsMap", config));
-    		
-    log.debug("Initialization Complete");
+if (config.getLocalName() != jwtValidatorRootConfigKey) {
+  throw new SynapseException(
+            "Initialization XML root element " + config.getLocalName()
+            + " doesn't match expected value " + jwtValidatorRootConfigKey + "!");
   }
+  
+jwtHeaderName = Utils.GetElement("JwtHttpHeader", config).getText();
+
+jwtValidator = new JwtValidator(config);
+
+jwtClaimsMap = new JwtClaimsMap(Utils.GetElement("JwtClaimsMap", config));
+      
+log.debug("Initialization Complete");
+}
 
   /**
    * Checks if the request comes with a valid JWT from the API Manager.
