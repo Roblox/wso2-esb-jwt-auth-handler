@@ -15,6 +15,7 @@ package com.roblox.rcs;
  * limitations under the License.
  */
 
+import java.util.Iterator;
 import java.util.Map;
 
 import javax.xml.stream.XMLStreamException;
@@ -25,6 +26,7 @@ import java.io.InputStream;
 import java.text.ParseException;
 
 import org.apache.axiom.om.OMElement;
+import org.apache.axiom.om.OMAttribute;
 import org.apache.axiom.om.OMDocument;
 import org.apache.axiom.om.impl.builder.StAXOMBuilder;
 import org.apache.commons.httpclient.util.HttpURLConnection;
@@ -44,6 +46,9 @@ import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.EncryptedJWT;
+
+import org.wso2.securevault.SecretResolver;
+import org.wso2.securevault.SecretResolverFactory;
 
 import com.roblox.rcs.JwtDecryptor;
 import com.roblox.rcs.JwtClaimsMap;
@@ -113,7 +118,7 @@ public class JwtAuthHandler extends AbstractHandler implements ManagedLifecycle 
       e.printStackTrace();
     }
     
-    config = builder.getDocumentElement();
+    config = decrypt(builder.getDocumentElement());
     
     if (config.getLocalName() != jwtValidatorRootConfigKey) {
 		throw new SynapseException(
@@ -258,4 +263,74 @@ public class JwtAuthHandler extends AbstractHandler implements ManagedLifecycle 
 		return carbonHome;
 	}
 
+  private OMElement decrypt(OMElement config) {
+
+      SecretResolver resolver = SecretResolverFactory.create(config, true);
+      
+      decryptChildElements(config, resolver);
+      
+      resolver.shutDown();
+
+	  return config;
+     
+  }
+  
+  private void decryptChildElements(OMElement element, SecretResolver resolver) {
+
+      Iterator childElements = element.getChildElements();
+      
+      String decrypted = "";
+      
+      while (childElements.hasNext()) {
+    	  OMElement el = (OMElement) childElements.next();
+    	  if (el.getChildElements() != null) {
+    		  decryptChildElements(el, resolver);
+    	  }
+    	  log.debug("Decrypting Element: " + el.getLocalName());
+    	  Iterator attributes = el.getAllAttributes();
+    	  while (attributes.hasNext()) {
+    		  OMAttribute attr = (OMAttribute) attributes.next();
+    		  log.debug("Decrypting Attribute: " + attr.getLocalName());
+    		  if (attr.getNamespace() != null && attr.getNamespace().getPrefix() == "svns") {
+    			  String key = attr.getAttributeValue();
+    			  
+    			  if (resolver.isTokenProtected(key)) {
+    				  log.debug("Token found and decrypting: " + key);
+    				  decrypted = resolver.resolve(key);
+    				  // It appears that only one encrypted string
+    				  // can exist per element/attribute, so there
+    				  // is no need to continue here.
+    				  break;
+    			  }
+    			  else {
+    				  log.debug("Token found but NOT decrypting " + key);
+    			  }
+    		  }
+    	  }
+    	  
+    	  if (decrypted != "") {
+    		  log.debug("Searching for placeholder value");
+    		  // If the element value is encrypted, easy
+    		  if (el.getText().equals("password")) {
+    			  log.debug("Setting Decrypted Element Value: " + el.getLocalName());
+    			  el.setText(decrypted);
+    		  }
+    		  // If it's not the element value it may be an attribute
+    		  else {
+    			  // Getting them again because we can't move backward
+    			  attributes = el.getAllAttributes();
+    	    	  while (attributes.hasNext()) { 
+    	    		  OMAttribute attr = (OMAttribute) attributes.next();
+    	    		  if (attr.getAttributeValue().equals("password")) {
+    	    			  log.debug("Setting Decrypted Attribute Value: " + attr.getLocalName());
+    	    			  attr.setAttributeValue(decrypted);
+    	    			  break;
+    	    		  }
+    	    	  }
+    		  }
+    	  }
+      }
+  }
+  
+  
 }
